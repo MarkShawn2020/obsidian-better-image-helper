@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@alicloud/darabonba-stream':
+        specifier: ^0.0.2
+        version: 0.0.2
       '@alicloud/ocr-api20210707':
         specifier: 3.1.2
         version: 3.1.2
@@ -44,6 +47,9 @@ packages:
 
   '@alicloud/credentials@2.4.2':
     resolution: {integrity: sha512-UbqUYlwOWKNxOemXM545HzQyCaChhyrne9cab4f67EqAkgrTjeMiTA7QK6sHtmcmJYowYQxxXoKPSe5GZstvbA==}
+
+  '@alicloud/darabonba-stream@0.0.2':
+    resolution: {integrity: sha512-eYViOqHa42nlJRwS1mjEs8hYIvJ0SaoHR7IDA2xyKjwdtyi6LJZbbEbaW9O0CjNPghm8+HB20VxAkcBNzVL0kg==}
 
   '@alicloud/endpoint-util@0.0.1':
     resolution: {integrity: sha512-+pH7/KEXup84cHzIL6UJAaPqETvln4yXlD9JzlrqioyCSaWxbug5FUobsiI6fuUOpw5WwoB3fWAtGbFnJ1K3Yg==}
@@ -345,6 +351,12 @@ snapshots:
       httpx: 2.3.3
       ini: 1.3.8
       kitx: 2.2.0
+    transitivePeerDependencies:
+      - supports-color
+
+  '@alicloud/darabonba-stream@0.0.2':
+    dependencies:
+      '@alicloud/tea-typescript': 1.8.0
     transitivePeerDependencies:
       - supports-color
 

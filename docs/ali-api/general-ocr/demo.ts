@@ -3,6 +3,7 @@
 import ocr_api20210707, * as $ocr_api20210707 from '@alicloud/ocr-api20210707';
 import OpenApi, * as $OpenApi from '@alicloud/openapi-client';
 import Util, * as $Util from '@alicloud/tea-util';
+import Stream from '@alicloud/darabonba-stream';
 import * as $tea from '@alicloud/tea-typescript';
 
 
@@ -31,7 +32,12 @@ export default class Client {
 
   static async main(args: string[]): Promise<void> {
     let client = Client.createClient();
-    let recognizeGeneralRequest = new $ocr_api20210707.RecognizeGeneralRequest({ });
+    // 需要安装额外的依赖库，直接点击下载完整工程即可看到所有依赖。
+    let bodyStream = Stream.readFromFilePath("<your-file-path>");
+    let recognizeGeneralRequest = new $ocr_api20210707.RecognizeGeneralRequest({
+      body: bodyStream,
+      url: "xxx",
+    });
     let runtime = new $Util.RuntimeOptions({ });
     try {
       // 复制代码运行请自行打印 API 的返回值

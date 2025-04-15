@@ -3,6 +3,7 @@ import OpenApi, * as $OpenApi from '@alicloud/openapi-client';
 import Util, * as $Util from '@alicloud/tea-util';
 import * as fs from 'fs';
 import { OcrServiceConfig } from './settings';
+import Stream from '@alicloud/darabonba-stream';
 
 export interface OcrResult {
     success: boolean;
@@ -93,11 +94,10 @@ async function recognizeFromFile(
     imagePath: string
 ): Promise<OcrResult> {
     // Read the file and convert to base64
-    const imageBuffer = fs.readFileSync(imagePath);
-    const base64Image = imageBuffer.toString('base64');
+    const imageStream =  Stream.readFromFilePath(imagePath);
     
     const request = new $ocr_api20210707.RecognizeGeneralRequest({
-        body: imageBuffer,
+        body: imageStream,
     });
     
     const runtime = new $Util.RuntimeOptions({});
