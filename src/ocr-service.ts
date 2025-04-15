@@ -1,3 +1,14 @@
+
+// Add unref polyfill for Node.js environments that don't support it
+if (typeof global !== 'undefined' && global.setTimeout) {
+    let timer = global.setTimeout;
+    // @ts-ignore - Add unref method to setTimeout
+    if (!timer.unref) {
+        // @ts-ignore
+        timer.unref = function() { return this; };
+    }
+}
+
 import ocr_api20210707, * as $ocr_api20210707 from '@alicloud/ocr-api20210707';
 import OpenApi, * as $OpenApi from '@alicloud/openapi-client';
 import Util, * as $Util from '@alicloud/tea-util';
@@ -69,13 +80,15 @@ async function recognizeFromUrl(
     
     const runtime = new $Util.RuntimeOptions({});
     const response = await client.recognizeGeneralWithOptions(request, runtime);
+
+    console.log('OCR识别结果:', response);
     
     // @ts-ignore - The type definitions might not properly reflect the actual response structure
     if (response && response.body && response.body.data) {
         return {
             success: true,
             // @ts-ignore - The content property exists in the response but not in type definitions
-            text: response.body.data.content || ''
+            text: JSON.parse(response.body.data).content || ''
         };
     }
     

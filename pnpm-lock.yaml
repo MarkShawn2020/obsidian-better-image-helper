@@ -23,6 +23,9 @@ importers:
       '@alicloud/tea-util':
         specifier: 1.4.10
         version: 1.4.10
+      httpx:
+        specifier: ^3.0.1
+        version: 3.0.1
       tslib:
         specifier: 2.8.1
         version: 2.8.1
@@ -281,6 +284,10 @@ packages:
 
   httpx@2.3.3:
     resolution: {integrity: sha512-k1qv94u1b6e+XKCxVbLgYlOypVP9MPGpnN5G/vxFf6tDO4V3xpz3d6FUOY/s8NtPgaq5RBVVgSB+7IHpVxMYzw==}
+
+  httpx@3.0.1:
+    resolution: {integrity: sha512-ILTmufYaGAH2Def/wQ++6mz41xDghoRFd3b49uSkVMIRUKm2nHTvPPaVGtNN5hoTu9E3bJ8Jg+8TRkx+PiN6sg==}
+    engines: {node: '>= 12'}
 
   ini@1.3.8:
     resolution: {integrity: sha512-JV/yugV2uzW5iMRSiZAyDtQd+nxtUnjeLt0acNdw98kKLrvuRVyB80tsREOE7yvGVgalhZ6RNXCmEHkUKBKxew==}
@@ -593,6 +600,12 @@ snapshots:
   httpx@2.3.3:
     dependencies:
       '@types/node': 20.17.30
+      debug: 4.4.0
+    transitivePeerDependencies:
+      - supports-color
+
+  httpx@3.0.1:
+    dependencies:
       debug: 4.4.0
     transitivePeerDependencies:
       - supports-color
