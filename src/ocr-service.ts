@@ -2,8 +2,9 @@ import ocr_api20210707, * as $ocr_api20210707 from '@alicloud/ocr-api20210707';
 import OpenApi, * as $OpenApi from '@alicloud/openapi-client';
 import Util, * as $Util from '@alicloud/tea-util';
 import * as fs from 'fs';
+import { OcrServiceConfig } from './settings';
 
-interface OcrResult {
+export interface OcrResult {
     success: boolean;
     text: string;
     error?: string;
@@ -12,14 +13,14 @@ interface OcrResult {
 /**
  * Create Alibaba Cloud OCR API client
  */
-function createClient(): ocr_api20210707 {
-    const config = new $OpenApi.Config({
-        accessKeyId: process.env.ALI_AK || '',
-        accessKeySecret: process.env.ALI_SK || '',
+function createClient(config: OcrServiceConfig): ocr_api20210707 {
+    const openApiConfig = new $OpenApi.Config({
+        accessKeyId: config.accessKey,
+        accessKeySecret: config.secretKey,
     });
     
-    config.endpoint = 'ocr-api.cn-hangzhou.aliyuncs.com';
-    return new ocr_api20210707(config);
+    openApiConfig.endpoint = 'ocr-api.cn-hangzhou.aliyuncs.com';
+    return new ocr_api20210707(openApiConfig);
 }
 
 /**
@@ -27,9 +28,15 @@ function createClient(): ocr_api20210707 {
  * @param imagePath Path to the image file
  * @returns Recognized text and success status
  */
-export async function recognizeImage(imagePath: string): Promise<OcrResult> {
+export async function recognizeImage(imagePath: string, serviceConfig: OcrServiceConfig): Promise<OcrResult> {
     try {
-        const client = createClient();
+        // 验证服务配置
+        if (!serviceConfig || !serviceConfig.accessKey || !serviceConfig.secretKey) {
+            throw new Error('OCR服务配置无效，请在插件设置中配置AccessKey和Secret');
+        }
+
+        // 创建客户端
+        const client = createClient(serviceConfig);
         
         // For URL images
         if (imagePath.startsWith('http')) {

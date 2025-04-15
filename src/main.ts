@@ -1,9 +1,33 @@
-import { App, Editor, MarkdownView, Menu, Notice, Plugin, TFile, TAbstractFile } from 'obsidian';
-import { recognizeImage } from './ocr-service';
+import { App, Editor, MarkdownView, Menu, Notice, Plugin, PluginSettingTab, Setting, TFile, TAbstractFile } from 'obsidian';
+import { recognizeImage, OcrResult } from './ocr-service';
+import { DEFAULT_SETTINGS, ImageOcrSettings, ImageOcrSettingTab, OcrServiceConfig } from './settings';
+
+// 扩展App类型定义，添加setting属性
+declare module 'obsidian' {
+	interface App {
+		setting: {
+			open(): void;
+			openTabById(id: string): void;
+			activeTab: PluginSettingTab;
+			tabHeaders: Array<{
+				name: string;
+				click(): void;
+			}>;
+		};
+	}
+}
 
 export default class ImageOcrPlugin extends Plugin {
+	settings: ImageOcrSettings;
+
 	async onload() {
 		console.log('Loading Image OCR Plugin - 初始化图片OCR插件');
+
+		// 加载设置
+		await this.loadSettings();
+
+		// 添加设置标签页
+		this.addSettingTab(new ImageOcrSettingTab(this.app, this));
 
 		// Register DOM event for contextmenu on images in Reading Mode
 		this.registerDomEvent(document, 'contextmenu', (evt: MouseEvent) => {
@@ -73,6 +97,20 @@ export default class ImageOcrPlugin extends Plugin {
 
 	onunload() {
 		console.log('Unloading Image OCR Plugin - 卸载图片OCR插件');
+	}
+
+	/**
+	 * 加载设置
+	 */
+	async loadSettings() {
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+	}
+
+	/**
+	 * 保存设置
+	 */
+	async saveSettings() {
+		await this.saveData(this.settings);
 	}
 
 	/**
@@ -216,21 +254,58 @@ export default class ImageOcrPlugin extends Plugin {
 	addOcrMenuOption(menu: Menu, imagePath: string) {
 		console.log('添加OCR菜单选项，图片路径:', imagePath);
 		
+		// 获取默认OCR服务配置
+		const defaultServiceType = this.settings.defaultService;
+		const service = this.settings.services.find(s => s.type === defaultServiceType && s.enabled);
+		
+		// 如果没有可用的服务，添加一个提示信息
+		if (!service) {
+			menu.addItem((item) => {
+				item
+					.setTitle('OCR 服务未配置')
+					.setIcon('alert-triangle')
+					.onClick(() => {
+						new Notice('请先在插件设置中配置OCR服务');
+						// 打开设置页面
+						this.openSettingTab();
+					});
+			});
+			return;
+		}
+		
 		menu.addItem((item) => {
 			item
-				.setTitle('OCR 识别图片文字')
+				.setTitle(`OCR 识别图片文字 (${service.name})`)
 				.setIcon('file-scan')
 				.onClick(async () => {
 					console.log('OCR选项被点击，开始处理图片:', imagePath);
-					await this.performOcr(imagePath);
+					await this.performOcr(imagePath, service);
 				});
 		});
+	}
+	
+	/**
+	 * 打开设置页面
+	 */
+	openSettingTab() {
+		// 尝试打开设置页面，这样会显示总设置页
+		this.app.setting?.open();
+		
+		// 延迟100ms再打开插件的设置页
+		setTimeout(() => {
+			const settingTabs = document.querySelectorAll('.vertical-tab-header-group > .vertical-tab-nav-item');
+			settingTabs.forEach(tab => {
+				if (tab.textContent?.includes(this.manifest.name)) {
+					(tab as HTMLElement).click();
+				}
+			});
+		}, 100);
 	}
 
 	/**
 	 * Perform OCR on the given image
 	 */
-	async performOcr(imagePath: string) {
+	async performOcr(imagePath: string, serviceConfig: OcrServiceConfig) {
 		try {
 			console.log('开始OCR处理流程，原始路径:', imagePath);
 			
@@ -249,7 +324,7 @@ export default class ImageOcrPlugin extends Plugin {
 			
 			// Perform OCR
 			console.log('调用阿里云OCR API...');
-			const result = await recognizeImage(resolvedPath);
+			const result = await recognizeImage(resolvedPath, serviceConfig);
 			console.log('OCR结果:', result);
 			
 			// Remove loading notice
@@ -270,7 +345,7 @@ export default class ImageOcrPlugin extends Plugin {
 				console.error('OCR识别失败:', result.error);
 				new Notice('OCR 识别失败: ' + result.error, 5000);
 			}
-		} catch (error) {
+		} catch (error: any) {
 			console.error('OCR处理过程中出错:', error);
 			new Notice(`OCR 识别失败: ${error.message}`, 5000);
 			console.error('OCR error:', error);
