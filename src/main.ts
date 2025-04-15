@@ -32,10 +32,56 @@ class OcrResultModal extends Modal {
 
 	onOpen() {
 		const {contentEl} = this;
-		const imageFileName = this.imagePath.split('/').pop() || 'image';
+		const imageFileName = this.imagePath || 'image';
 		
-		// 标题
-		contentEl.createEl('h2', {text: `OCR 识别结果: ${imageFileName}`});
+		// 标题区域
+		const titleContainer = contentEl.createDiv({cls: 'ocr-result-title'});
+		titleContainer.createEl('h2', {text: 'OCR 识别结果: '});
+		
+		// 创建小字的文件名超链接
+		const fileNameLink = titleContainer.createEl('a', {
+			cls: 'ocr-filename-link',
+			text: imageFileName,
+			attr: {
+				style: 'font-size: 0.8em; color: var(--text-muted); margin-left: 5px; text-decoration: underline;',
+				title: '点击可以在文件系统中显示图片'
+			}
+		});
+		
+		// 为超链接添加点击事件，尝试在系统文件浏览器中打开图片位置
+		fileNameLink.addEventListener('click', async (e) => {
+			e.preventDefault();
+			try {
+				if (this.imagePath.startsWith('http')) {
+					// 如果是网络图片，在浏览器中打开
+					window.open(this.imagePath, '_blank');
+				} else {
+					// 检查本地文件是否存在
+					const fileExists = await this.app.vault.adapter.exists(this.imagePath);
+					if (fileExists) {
+						// @ts-ignore - Electron API
+						if (this.app.appId === 'obsidian' && window.require) {
+							try {
+								const electron = window.require('electron');
+								const path = window.require('path');
+								const fullPath = path.resolve(this.imagePath);
+								electron.shell.showItemInFolder(fullPath);
+							} catch (e) {
+								console.error('无法在文件系统中打开图片:', e);
+								new Notice('无法在文件系统中打开图片');
+							}
+						} else {
+							new Notice('当前环境无法在文件系统中打开图片');
+						}
+					} else {
+						new Notice('找不到图片文件');
+					}
+				}
+			} catch (e) {
+				console.error('处理图片链接时出错:', e);
+				new Notice('无法打开图片位置');
+			}
+		});
 		
 		// 图片预览（如果是本地图片）
 		if (!this.imagePath.startsWith('http')) {
