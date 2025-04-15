@@ -1,4 +1,4 @@
-import { App, Editor, MarkdownView, Menu, Notice, Plugin, PluginSettingTab, Setting, TFile, TAbstractFile } from 'obsidian';
+import { App, Editor, MarkdownView, Menu, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, TAbstractFile } from 'obsidian';
 import { recognizeImage, OcrResult } from './ocr-service';
 import { DEFAULT_SETTINGS, ImageOcrSettings, ImageOcrSettingTab, OcrServiceConfig } from './settings';
 
@@ -14,6 +14,114 @@ declare module 'obsidian' {
 				click(): void;
 			}>;
 		};
+	}
+}
+
+/**
+ * OCR结果显示模态窗口
+ */
+class OcrResultModal extends Modal {
+	result: string;
+	imagePath: string;
+
+	constructor(app: App, result: string, imagePath: string) {
+		super(app);
+		this.result = result;
+		this.imagePath = imagePath;
+	}
+
+	onOpen() {
+		const {contentEl} = this;
+		const imageFileName = this.imagePath.split('/').pop() || 'image';
+		
+		// 标题
+		contentEl.createEl('h2', {text: `OCR 识别结果: ${imageFileName}`});
+		
+		// 图片预览（如果是本地图片）
+		if (!this.imagePath.startsWith('http')) {
+			try {
+				const imgContainer = contentEl.createDiv({cls: 'ocr-image-preview'});
+				imgContainer.createEl('img', {attr: {src: this.imagePath, style: 'max-width: 100%; max-height: 200px;'}});
+			} catch (e) {
+				console.log('无法显示图片预览:', e);
+			}
+		}
+		
+		// 文本编辑区域
+		const textAreaContainer = contentEl.createDiv({cls: 'ocr-result-textarea-container'});
+		textAreaContainer.createEl('h3', {text: '识别文本 (可编辑):'});
+		
+		const textArea = textAreaContainer.createEl('textarea', {
+			cls: 'ocr-result-textarea',
+			attr: {
+				style: 'width: 100%; height: 200px; font-family: monospace; padding: 8px; margin-bottom: 10px;'
+			}
+		});
+		textArea.value = this.result;
+		
+		// 按钮组
+		const buttonContainer = contentEl.createDiv({cls: 'ocr-result-buttons'});
+		
+		// 复制按钮
+		const copyButton = buttonContainer.createEl('button', {text: '复制文本'});
+		copyButton.addEventListener('click', async () => {
+			await navigator.clipboard.writeText(textArea.value);
+			new Notice('文本已复制到剪贴板!');
+		});
+		
+		// 创建为新笔记按钮
+		const createNoteButton = buttonContainer.createEl('button', {
+			text: '创建为新笔记',
+			attr: {
+				style: 'margin-left: 10px;'
+			}
+		});
+		createNoteButton.addEventListener('click', async () => {
+			this.close();
+			await this.createNoteWithText(textArea.value);
+		});
+		
+		// 关闭按钮
+		const closeButton = buttonContainer.createEl('button', {
+			text: '关闭',
+			attr: {
+				style: 'margin-left: 10px;'
+			}
+		});
+		closeButton.addEventListener('click', () => {
+			this.close();
+		});
+		
+		// 自动聚焦到文本区域并选中全部文本
+		setTimeout(() => {
+			textArea.focus();
+			textArea.select();
+		}, 50);
+	}
+	
+	/**
+	 * 创建新笔记
+	 */
+	async createNoteWithText(text: string) {
+		const fileName = this.imagePath.split('/').pop() || 'image';
+		const content = `# OCR 结果: ${fileName}\n\n![](${this.imagePath})\n\n\`\`\`\n${text}\n\`\`\``;
+		
+		// 创建新文件
+		const newFileName = `OCR_${fileName.replace(/\.\w+$/, '')}_${Date.now()}.md`;
+		await this.app.vault.create(newFileName, content);
+		
+		// 打开新文件
+		const file = this.app.vault.getAbstractFileByPath(newFileName);
+		if (file instanceof TFile) {
+			const leaf = this.app.workspace.getLeaf();
+			await leaf.openFile(file);
+			new Notice(`已创建笔记: ${newFileName}`);
+		}
+	}
+
+	onClose() {
+		const {contentEl} = this;
+		contentEl.empty();
 	}
 }
 
@@ -333,11 +441,13 @@ export default class ImageOcrPlugin extends Plugin {
 			// Show result
 			if (result.success) {
 				console.log('OCR识别成功，文本长度:', result.text.length);
-				// Copy text to clipboard
+				
+				// 自动复制到剪贴板
 				await navigator.clipboard.writeText(result.text);
 				console.log('识别结果已复制到剪贴板');
-				new Notice('OCR 识别成功，已复制到剪贴板');
 				
+				// 显示OCR结果模态窗口
+				new OcrResultModal(this.app, result.text, imagePath).open();
 			} else {
 				console.error('OCR识别失败:', result.error);
 				new Notice('OCR 识别失败: ' + result.error, 5000);
