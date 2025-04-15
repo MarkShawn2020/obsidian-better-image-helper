@@ -338,9 +338,6 @@ export default class ImageOcrPlugin extends Plugin {
 				console.log('识别结果已复制到剪贴板');
 				new Notice('OCR 识别成功，已复制到剪贴板');
 				
-				// Create a new note with the OCR result
-				console.log('创建包含OCR结果的笔记');
-				this.createNoteWithOcrResult(result.text, imagePath);
 			} else {
 				console.error('OCR识别失败:', result.error);
 				new Notice('OCR 识别失败: ' + result.error, 5000);
@@ -385,34 +382,4 @@ export default class ImageOcrPlugin extends Plugin {
 		return fullPath;
 	}
 
-	/**
-	 * Create a new note with the OCR result
-	 */
-	async createNoteWithOcrResult(text: string, imagePath: string) {
-		console.log('创建OCR结果笔记，图片路径:', imagePath);
-		
-		// Create the content for the new note
-		const fileName = imagePath.split('/').pop() || 'image';
-		console.log('从路径提取的文件名:', fileName);
-		
-		const content = `# OCR 结果: ${fileName}\n\n![](${imagePath})\n\n\`\`\`\n${text}\n\`\`\``;
-		console.log('生成的笔记内容长度:', content.length);
-		
-		// Create a new file
-		const newFileName = `OCR_${fileName.replace(/\.\w+$/, '')}_${Date.now()}.md`;
-		console.log('新建的笔记文件名:', newFileName);
-		
-		await this.app.vault.create(newFileName, content);
-		console.log('已创建OCR结果笔记');
-		
-		// Open the new file
-		const file = this.app.vault.getAbstractFileByPath(newFileName);
-		if (file instanceof TFile) {
-			console.log('打开新建的笔记');
-			const leaf = this.app.workspace.getLeaf();
-			await leaf.openFile(file);
-		} else {
-			console.error('无法找到新建的笔记文件');
-		}
-	}
 } 
