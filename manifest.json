@@ -1,7 +1,7 @@
 {
   "id": "better-image-helper",
   "name": "Better Image Helper",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "minAppVersion": "0.15.0",
   "description": "Better image helper with OCR (via Alibaba Cloud API), future support for rotation, scaling, and other image operations, providing best user experience",
   "author": "markshawn2020",
