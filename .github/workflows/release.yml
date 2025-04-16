@@ -5,6 +5,10 @@ on:
     tags:
       - "*"
 
+# 添加权限配置，使工作流能够创建release
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,15 +38,10 @@ jobs:
         run: |
           tag="${GITHUB_REF#refs/tags/}"
           
-          # Create a zip file with the required files
-          zip -r ${{ github.event.repository.name }}.zip dist
+          # 直接使用构建后的文件，不需要再创建zip
           
-          # Copy the required files from dist directory for individual upload
-          cp dist/main.js .
-          cp dist/manifest.json .
-          
-          # Create GitHub release with all required assets
+          # 创建GitHub release，上传所需文件
           gh release create "$tag" \
             --title "$tag" \
             --notes "Release $tag of the plugin." \
-            ${{ github.event.repository.name }}.zip main.js manifest.json 
+            dist/main.js dist/manifest.json 
