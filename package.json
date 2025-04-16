@@ -1,6 +1,6 @@
 {
   "name": "obsidian-image-ocr",
-  "version": "1.0.4",
+  "version": "1.0.8",
   "description": "OCR for images via right-click menu using Alibaba Cloud OCR API",
   "main": "main.js",
   "scripts": {

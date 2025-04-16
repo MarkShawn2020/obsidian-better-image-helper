@@ -1,7 +1,7 @@
 {
   "id": "obsidian-image-ocr",
   "name": "Image OCR",
-  "version": "1.0.4",
+  "version": "1.0.8",
   "minAppVersion": "0.15.0",
   "description": "OCR for images via right-click menu using Alibaba Cloud OCR API",
   "author": "markshawn2020",
@@ -10,4 +10,4 @@
   "fundingUrl": {
     "GitHub": "https://github.com/sponsors/markshawn2020"
   }
-} 
+}
