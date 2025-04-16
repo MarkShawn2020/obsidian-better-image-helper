@@ -8,10 +8,10 @@
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "postbuild": "node postbuild.mjs",
     "version": "node version-bump.mjs && git add manifest.json versions.json",
-    "release:patch": "pnpm version patch && npm run release:post",
-    "release:minor": "pnpm version minor && npm run release:post",
-    "release:major": "pnpm version major && npm run release:post",
-    "release:post": "git push && git push origin $(git describe --tags --abbrev=0)"
+    "release:patch": "pnpm version patch --no-git-tag-version && npm run release:post",
+    "release:minor": "pnpm version minor --no-git-tag-version && npm run release:post",
+    "release:major": "pnpm version major --no-git-tag-version && npm run release:post",
+    "release:post": "git add . && git commit -m \"Release $(node -p \"require('./package.json').version\")\" && git tag \"$(node -p \"require('./package.json').version\")\" && git push && git push origin \"$(node -p \"require('./package.json').version\")\""
   },
   "keywords": [
     "obsidian",

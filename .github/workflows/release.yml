@@ -37,11 +37,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${GITHUB_REF#refs/tags/}"
-          # 去掉标签名称中的 v 前缀用于 release 名称
-          version="${tag#v}"
+          # 标签已经不包含 v 前缀，直接使用
           
-          # 创建GitHub release，上传所需文件，使用不带 v 的版本号作为 release 名称
+          # 创建GitHub release，上传所需文件
           gh release create "$tag" \
-            --title "$version" \
-            --notes "Release $version of the plugin." \
+            --title "$tag" \
+            --notes "Release $tag of the plugin." \
             dist/main.js dist/manifest.json 
