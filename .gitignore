@@ -1,5 +1,44 @@
-dist
-temp
+# Intellij
+*.iml
+.idea
+
+# npm
+node_modules
+package-lock.json
+
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+thumbs.db
+desktop.ini
+
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+
+# Yarn
+yarn-debug.log*
+yarn-error.log*
+pnpm-lock.yaml
+
+# Environment variables
+.env
+
+# Build files
+# We keep the dist folder for releases
+# dist/ 
+
+# Obsidian
+.obsidian/
+data.json
+
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
@@ -19,7 +58,6 @@ temp
 /build
 
 # misc
-.DS_Store
 *.pem
 
 # debug
