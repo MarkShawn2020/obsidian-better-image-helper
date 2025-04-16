@@ -91,6 +91,11 @@
 
 ## 📝 更新日志
 
+### 1.0.4 (2024-04-15)
+- 正式发布到Obsidian官方插件库
+- 优化构建流程
+- 修复了一些问题
+
 ### 0.1.0 (2023-04-15)
 - 新增更美观的 OCR 结果展示窗口
 - 添加实时字符统计功能
@@ -101,6 +106,85 @@
 - 首次发布
 - 支持多种模式下的图片 OCR 识别
 - 基础结果展示和复制功能
+
+## 💻 开发者说明
+
+### 发布插件到Obsidian官方市场
+
+如果你想参与贡献或者了解如何将此类插件发布到Obsidian官方市场，以下是完整流程：
+
+1. **准备必要文件**：
+   - `manifest.json`：插件的基本信息，确保版本号遵循语义化版本规范
+   - `main.js`：编译后的插件主文件
+   - `styles.css`（可选）：如果插件有自定义样式
+   - `README.md`：插件说明文档
+   - `LICENSE`：开源许可证文件（如MIT）
+
+2. **设置GitHub仓库**：
+   - 确保代码托管在GitHub上
+   - 设置适当的.gitignore，排除node_modules和构建产物
+
+3. **配置GitHub Actions自动发布**：
+   ```yaml
+   name: Release Obsidian plugin
+   
+   on:
+     push:
+       tags: ["*"]
+   
+   permissions:
+     contents: write
+   
+   jobs:
+     build:
+       runs-on: ubuntu-latest
+       steps:
+         - uses: actions/checkout@v3
+         - uses: actions/setup-node@v3
+           with:
+             node-version: "18.x"
+         - uses: pnpm/action-setup@v2
+           with:
+             version: 8
+         - name: Install dependencies
+           run: pnpm install
+         - name: Build plugin
+           run: pnpm run build
+         - name: Create release
+           env:
+             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+           run: |
+             tag="${GITHUB_REF#refs/tags/}"
+             gh release create "$tag" \
+               --title "$tag" \
+               --notes "Release $tag of the plugin." \
+               dist/main.js dist/manifest.json
+   ```
+
+4. **创建发布版本**：
+   - 确保manifest.json中的版本号与GitHub标签一致
+   - 推送一个与版本号相同的标签，如`git tag -a 1.0.4 -m "Release 1.0.4"`和`git push origin 1.0.4`
+   - GitHub Actions将自动构建并创建发布版本
+
+5. **提交到Obsidian官方插件库**：
+   - Fork [obsidian-releases](https://github.com/obsidianmd/obsidian-releases) 仓库
+   - 在`community-plugins.json`文件末尾添加插件信息：
+     ```json
+     {
+       "id": "obsidian-image-ocr",
+       "name": "Image OCR",
+       "author": "markshawn2020",
+       "description": "OCR for images via right-click menu using Alibaba Cloud OCR API",
+       "repo": "MarkShawn2020/obsidian-plugin-image-ocr"
+     }
+     ```
+   - 创建PR，标题格式为"Add plugin: Image OCR"
+   - 完成PR模板中的所有检查项
+   - 等待Obsidian团队审核
+
+6. **插件获得批准后**：
+   - 在Obsidian论坛的[Share & showcase](https://forum.obsidian.md/c/share-showcase/9)版块宣布
+   - 在Discord的`#updates`频道宣布（需要开发者角色）
 
 ## 📄 许可证
 
