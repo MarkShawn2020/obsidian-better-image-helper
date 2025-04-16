@@ -1,10 +1,11 @@
 {
   "id": "better-image-helper",
   "name": "Better Image Helper",
+  "author": "markshawn2020",
+  "description": "Better image helper with OCR (via Alibaba Cloud API), future support for rotation, scaling, and other image operations, providing best user experience",
+  "repo": "markshawn2020/obsidian-better-image-helper",
   "version": "1.1.1",
   "minAppVersion": "0.15.0",
-  "description": "Better image helper with OCR (via Alibaba Cloud API), future support for rotation, scaling, and other image operations, providing best user experience",
-  "author": "markshawn2020",
   "authorUrl": "https://github.com/markshawn2020",
   "isDesktopOnly": true,
   "fundingUrl": {
