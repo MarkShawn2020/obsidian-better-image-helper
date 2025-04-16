@@ -35,11 +35,14 @@ jobs:
           tag="${GITHUB_REF#refs/tags/}"
           
           # Create a zip file with the required files
-          mkdir ${{ github.event.repository.name }}
-          cp main.js manifest.json styles.css ${{ github.event.repository.name }}
-          zip -r ${{ github.event.repository.name }}.zip ${{ github.event.repository.name }}
+          zip -r ${{ github.event.repository.name }}.zip dist
           
+          # Copy the required files from dist directory for individual upload
+          cp dist/main.js .
+          cp dist/manifest.json .
+          
+          # Create GitHub release with all required assets
           gh release create "$tag" \
             --title "$tag" \
             --notes "Release $tag of the plugin." \
-            ${{ github.event.repository.name }}.zip main.js manifest.json styles.css 
+            ${{ github.event.repository.name }}.zip main.js manifest.json 
