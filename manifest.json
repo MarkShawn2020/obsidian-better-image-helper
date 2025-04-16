@@ -5,6 +5,9 @@
   "minAppVersion": "0.15.0",
   "description": "OCR for images via right-click menu using Alibaba Cloud OCR API",
   "author": "markshawn2020",
-  "authorUrl": "",
-  "isDesktopOnly": true
+  "authorUrl": "https://github.com/markshawn2020",
+  "isDesktopOnly": true,
+  "fundingUrl": {
+    "GitHub": "https://github.com/sponsors/markshawn2020"
+  }
 } 

@@ -1,3 +1,7 @@
+# Obsidian Image OCR Plugin
+
+> English: This plugin provides OCR (Optical Character Recognition) for images in Obsidian. Right-click on any image to extract text using Alibaba Cloud OCR API. Supports various working modes and elegant result display.
+
 # Obsidian Image OCR 插件
 
 图片 OCR 文字识别插件，在 Obsidian 中右键点击图片即可识别图片中的文字，支持多种工作模式和优雅的结果展示。
