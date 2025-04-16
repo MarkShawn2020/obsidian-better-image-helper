@@ -32,81 +32,198 @@ class OcrResultModal extends Modal {
 
 	onOpen() {
 		const {contentEl} = this;
-		const imageFileName = this.imagePath || 'image';
+		const imageFileName = this.imagePath.split('/').pop() || 'image';
+		const fullImagePath = this.imagePath || '';
+		
+		// 添加样式
+		contentEl.addClass('ocr-result-modal');
+		contentEl.createEl('style', {
+			text: `
+				.ocr-result-modal {
+					padding: 20px;
+					max-width: 800px;
+				}
+				.ocr-result-header {
+					display: flex;
+					flex-direction: column;
+					margin-bottom: 16px;
+					border-bottom: 1px solid var(--background-modifier-border);
+					padding-bottom: 12px;
+				}
+				.ocr-result-title {
+					display: flex;
+					align-items: baseline;
+					margin-bottom: 8px;
+				}
+				.ocr-result-title h2 {
+					margin: 0;
+					margin-right: 8px;
+				}
+				.ocr-path-container {
+					font-size: 0.8em;
+					color: var(--text-muted);
+					margin-top: 4px;
+					word-break: break-all;
+					overflow-wrap: break-word;
+					white-space: normal;
+					display: flex;
+					align-items: center;
+				}
+				.ocr-path-label {
+					flex-shrink: 0;
+					margin-right: 6px;
+				}
+				.ocr-path-value {
+					overflow: hidden;
+					text-overflow: ellipsis;
+				}
+				.ocr-content-container {
+					display: flex;
+					flex-direction: column;
+					gap: 16px;
+				}
+				.ocr-preview-container {
+					display: flex;
+					justify-content: center;
+					background: var(--background-secondary);
+					border-radius: 8px;
+					padding: 12px;
+					margin-bottom: 12px;
+				}
+				.ocr-preview-container img {
+					max-width: 100%;
+					max-height: 250px;
+					object-fit: contain;
+					border-radius: 4px;
+				}
+				.ocr-result-textarea {
+					width: 100%;
+					min-height: 200px;
+					font-family: var(--font-monospace);
+					padding: 12px;
+					border-radius: 4px;
+					border: 1px solid var(--background-modifier-border);
+					background-color: var(--background-primary);
+					resize: vertical;
+				}
+				.ocr-result-textarea:focus {
+					border-color: var(--interactive-accent);
+					outline: none;
+				}
+				.ocr-result-buttons {
+					display: flex;
+					gap: 8px;
+					margin-top: 12px;
+					justify-content: flex-end;
+				}
+				.ocr-result-buttons button {
+					padding: 6px 12px;
+					border-radius: 4px;
+					font-size: 14px;
+					font-weight: 500;
+					background-color: var(--interactive-normal);
+					border: none;
+					cursor: pointer;
+				}
+				.ocr-result-buttons button:hover {
+					background-color: var(--interactive-hover);
+				}
+				.ocr-result-buttons button.primary {
+					background-color: var(--interactive-accent);
+					color: var(--text-on-accent);
+				}
+				.ocr-result-buttons button.primary:hover {
+					background-color: var(--interactive-accent-hover);
+				}
+				.ocr-char-count {
+					font-size: 12px;
+					color: var(--text-muted);
+					text-align: right;
+					margin-top: 4px;
+				}
+			`
+		});
+		
+		// 头部区域
+		const headerContainer = contentEl.createDiv({cls: 'ocr-result-header'});
 		
 		// 标题区域
-		const titleContainer = contentEl.createDiv({cls: 'ocr-result-title'});
-		titleContainer.createEl('h2', {text: 'OCR 识别结果: '});
+		const titleContainer = headerContainer.createDiv({cls: 'ocr-result-title'});
+		titleContainer.createEl('h2', {text: 'OCR 识别结果'});
 		
-		// 创建小字的文件名超链接
-		const fileNameLink = titleContainer.createEl('a', {
-			cls: 'ocr-filename-link',
-			text: imageFileName,
+		
+		// 完整路径显示 (包含图标和可复制)
+		const pathContainer = headerContainer.createDiv({cls: 'ocr-path-container'});
+		pathContainer.createEl('span', {cls: 'ocr-path-label', text: '路径：'});
+		
+		// 路径值容器
+		const pathValue = pathContainer.createEl('span', {
+			cls: 'ocr-path-value',
+			text: this.truncatePath(fullImagePath, 60),
 			attr: {
-				style: 'font-size: 0.8em; color: var(--text-muted); margin-left: 5px; text-decoration: underline;',
-				title: '点击可以在文件系统中显示图片'
+				title: fullImagePath
 			}
 		});
 		
-		// 为超链接添加点击事件，尝试在系统文件浏览器中打开图片位置
-		fileNameLink.addEventListener('click', async (e) => {
-			e.preventDefault();
-			try {
-				if (this.imagePath.startsWith('http')) {
-					// 如果是网络图片，在浏览器中打开
-					window.open(this.imagePath, '_blank');
-				} else {
-					// 检查本地文件是否存在
-					const fileExists = await this.app.vault.adapter.exists(this.imagePath);
-					if (fileExists) {
-						// @ts-ignore - Electron API
-						if (this.app.appId === 'obsidian' && window.require) {
-							try {
-								const electron = window.require('electron');
-								const path = window.require('path');
-								const fullPath = path.resolve(this.imagePath);
-								electron.shell.showItemInFolder(fullPath);
-							} catch (e) {
-								console.error('无法在文件系统中打开图片:', e);
-								new Notice('无法在文件系统中打开图片');
-							}
-						} else {
-							new Notice('当前环境无法在文件系统中打开图片');
-						}
-					} else {
-						new Notice('找不到图片文件');
-					}
+		// 添加复制路径按钮
+		const copyPathBtn = pathContainer.createEl('button', {
+			cls: 'clickable-icon',
+			attr: {
+				'aria-label': '复制路径',
+				style: 'margin-left: 4px; padding: 2px;'
+			}
+		});
+		// 使用 svg 图标
+		copyPathBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
+		copyPathBtn.addEventListener('click', async () => {
+			await navigator.clipboard.writeText(fullImagePath);
+			new Notice('已复制图片路径');
+		});
+		
+		// 内容容器
+		const contentContainer = contentEl.createDiv({cls: 'ocr-content-container'});
+		
+		// 图片预览（如果是本地图片或HTTP图片）
+		const previewContainer = contentContainer.createDiv({cls: 'ocr-preview-container'});
+		try {
+			previewContainer.createEl('img', {
+				attr: {
+					src: this.imagePath,
+					alt: '图片预览',
+					onclick: 'window.open(this.src)'
 				}
-			} catch (e) {
-				console.error('处理图片链接时出错:', e);
-				new Notice('无法打开图片位置');
-			}
-		});
-		
-		// 图片预览（如果是本地图片）
-		if (!this.imagePath.startsWith('http')) {
-			try {
-				const imgContainer = contentEl.createDiv({cls: 'ocr-image-preview'});
-				imgContainer.createEl('img', {attr: {src: this.imagePath, style: 'max-width: 100%; max-height: 200px;'}});
-			} catch (e) {
-				console.log('无法显示图片预览:', e);
-			}
+			});
+		} catch (e) {
+			console.log('无法显示图片预览:', e);
+			previewContainer.setText('无法显示图片预览');
 		}
 		
 		// 文本编辑区域
-		const textAreaContainer = contentEl.createDiv({cls: 'ocr-result-textarea-container'});
-		textAreaContainer.createEl('h3', {text: '识别文本 (可编辑):'});
+		const textAreaContainer = contentContainer.createDiv({cls: 'ocr-textarea-container'});
+		textAreaContainer.createEl('h3', {text: '识别文本', attr: {style: 'margin-top: 0; margin-bottom: 8px;'}});
 		
 		const textArea = textAreaContainer.createEl('textarea', {
-			cls: 'ocr-result-textarea',
-			attr: {
-				style: 'width: 100%; height: 200px; font-family: monospace; padding: 8px; margin-bottom: 10px;'
-			}
+			cls: 'ocr-result-textarea'
 		});
 		textArea.value = this.result;
 		
+		// 字符计数
+		const charCount = textAreaContainer.createDiv({cls: 'ocr-char-count'});
+		this.updateCharCount(charCount, this.result);
+		
+		// 监听文本编辑更新字符计数
+		textArea.addEventListener('input', () => {
+			this.updateCharCount(charCount, textArea.value);
+		});
+		
 		// 按钮组
-		const buttonContainer = contentEl.createDiv({cls: 'ocr-result-buttons'});
+		const buttonContainer = contentContainer.createDiv({cls: 'ocr-result-buttons'});
+		
+		// 关闭按钮
+		const closeButton = buttonContainer.createEl('button', {text: '关闭'});
+		closeButton.addEventListener('click', () => {
+			this.close();
+		});
 		
 		// 复制按钮
 		const copyButton = buttonContainer.createEl('button', {text: '复制文本'});
@@ -118,24 +235,11 @@ class OcrResultModal extends Modal {
 		// 创建为新笔记按钮
 		const createNoteButton = buttonContainer.createEl('button', {
 			text: '创建为新笔记',
-			attr: {
-				style: 'margin-left: 10px;'
-			}
+			cls: 'primary'
 		});
 		createNoteButton.addEventListener('click', async () => {
 			this.close();
 			await this.createNoteWithText(textArea.value);
-		});
-		
-		// 关闭按钮
-		const closeButton = buttonContainer.createEl('button', {
-			text: '关闭',
-			attr: {
-				style: 'margin-left: 10px;'
-			}
-		});
-		closeButton.addEventListener('click', () => {
-			this.close();
 		});
 		
 		// 自动聚焦到文本区域并选中全部文本
@@ -145,6 +249,29 @@ class OcrResultModal extends Modal {
 		}, 50);
 	}
 	
+	/**
+	 * 处理路径显示，避免太长
+	 */
+	truncatePath(path: string, maxLength: number): string {
+		if (!path || path.length <= maxLength) return path;
+		
+		const startLength = Math.floor(maxLength * 0.3);
+		const endLength = Math.floor(maxLength * 0.7);
+		
+		return path.substring(0, startLength) + 
+			   '...' + 
+			   path.substring(path.length - endLength);
+	}
+	
+	/**
+	 * 更新字符计数
+	 */
+	updateCharCount(element: HTMLElement, text: string) {
+		const charCount = text.length;
+		const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+		element.setText(`字符数: ${charCount}, 词数: ${wordCount}`);
+	}
+
 	/**
 	 * 创建新笔记
 	 */
