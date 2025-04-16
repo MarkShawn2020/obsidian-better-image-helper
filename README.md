@@ -1,10 +1,10 @@
-# Obsidian Image OCR Plugin
+# Obsidian Plugin - Better Image Helper
 
-> English: This plugin provides OCR (Optical Character Recognition) for images in Obsidian. Right-click on any image to extract text using Alibaba Cloud OCR API. Supports various working modes and elegant result display.
+> English: This plugin provides a comprehensive image helper for Obsidian. Currently features OCR (Optical Character Recognition) for images using Alibaba Cloud OCR API, with plans to add image rotation, scaling, and other operations in future updates. Designed to provide the best possible user experience for image handling in Obsidian.
 
-# Obsidian Image OCR 插件
+# Obsidian 插件 - 更好的图片处理助手
 
-图片 OCR 文字识别插件，在 Obsidian 中右键点击图片即可识别图片中的文字，支持多种工作模式和优雅的结果展示。
+全面的图片助手插件，目前实现了OCR文字识别功能，在Obsidian中右键点击图片即可识别图片中的文字。未来将添加图片旋转、放缩等更多图片处理功能，致力于为Obsidian用户提供最佳的图片处理体验。
 
 ![](20250416171820.png)
 
@@ -36,7 +36,7 @@
 ### 手动安装
 
 1. 下载最新的 release 文件
-2. 解压缩后，将文件夹复制到 Obsidian 插件目录（`.obsidian/plugins/obsidian-image-ocr/`）
+2. 解压缩后，将文件夹复制到 Obsidian 插件目录（`.obsidian/plugins/better-image-helper/`）
 3. 在 Obsidian 设置中启用插件
 
 ## 🔧 配置
@@ -211,10 +211,10 @@
    - 在`community-plugins.json`文件末尾添加插件信息：
      ```json
      {
-       "id": "obsidian-image-ocr",
+       "id": "better-image-helper",
        "name": "Image OCR",
        "author": "markshawn2020",
-       "description": "OCR for images via right-click menu using Alibaba Cloud OCR API",
+       "description": "Better image helper with OCR (via Alibaba Cloud API), future support for rotation, scaling, and other image operations, providing best user experience",
        "repo": "MarkShawn2020/obsidian-plugin-image-ocr"
      }
      ```
