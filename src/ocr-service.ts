@@ -58,7 +58,7 @@ export async function recognizeImage(imagePath: string, serviceConfig: OcrServic
         // For local files
         return await recognizeFromFile(client, imagePath);
     } catch (error: any) {
-        console.error('OCR recognition error:', error);
+        // Handle OCR recognition errors
         return {
             success: false,
             text: '',
@@ -81,7 +81,7 @@ async function recognizeFromUrl(
     const runtime = new $Util.RuntimeOptions({});
     const response = await client.recognizeGeneralWithOptions(request, runtime);
 
-    console.log('OCR识别结果:', response);
+    // OCR recognition response received
     
     // @ts-ignore - The type definitions might not properly reflect the actual response structure
     if (response && response.body && response.body.data) {
