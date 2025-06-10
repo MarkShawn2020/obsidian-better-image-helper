@@ -20,6 +20,7 @@ if (!fs.existsSync("dist")) {
 
 // Copy manifest.json to dist folder
 fs.copyFileSync("manifest.json", "dist/manifest.json");
+fs.copyFileSync(".gitignore", "dist/.gitignore");
 
 // Copy versions.json to dist folder if exists
 if (fs.existsSync("versions.json")) {
