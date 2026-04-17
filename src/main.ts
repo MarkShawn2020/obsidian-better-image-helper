@@ -299,8 +299,228 @@ class OcrResultModal extends Modal {
 	}
 }
 
+/**
+ * 图片大图预览模态窗口
+ */
+interface AltEditContext {
+	editor: Editor;
+	// 用于在源文件里匹配的图片路径标识（markdown ![](X) 或 wikilink ![[X]] 中的 X）
+	pathKey: string;
+}
+
+class ImagePreviewModal extends Modal {
+	imageSrc: string;
+	editContext?: AltEditContext;
+
+	constructor(app: App, imageSrc: string, editContext?: AltEditContext) {
+		super(app);
+		this.imageSrc = imageSrc;
+		this.editContext = editContext;
+	}
+
+	onOpen() {
+		const { contentEl, modalEl } = this;
+		modalEl.addClass('image-preview-modal');
+		contentEl.createEl('style', {
+			text: `
+				.image-preview-modal {
+					background: transparent;
+					box-shadow: none;
+					border: none;
+					padding: 0;
+					max-width: 95vw;
+					max-height: 95vh;
+					width: auto;
+				}
+				.image-preview-modal .modal-close-button {
+					color: var(--text-on-accent);
+					background: rgba(0, 0, 0, 0.4);
+					border-radius: 50%;
+				}
+				.image-preview-content {
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					justify-content: center;
+					padding: 0;
+					gap: 8px;
+				}
+				.image-preview-content img {
+					max-width: 95vw;
+					max-height: 85vh;
+					object-fit: contain;
+					cursor: zoom-out;
+					border-radius: 4px;
+				}
+				.image-preview-alt-bar {
+					display: flex;
+					align-items: center;
+					gap: 8px;
+					width: min(95vw, 720px);
+					padding: 8px 10px;
+					background: rgba(0, 0, 0, 0.55);
+					border-radius: 6px;
+				}
+				.image-preview-alt-bar label {
+					color: #fff;
+					font-size: 12px;
+					flex-shrink: 0;
+				}
+				.image-preview-alt-bar input {
+					flex: 1;
+					padding: 4px 8px;
+					border-radius: 4px;
+					border: 1px solid var(--background-modifier-border);
+					background: var(--background-primary);
+					color: var(--text-normal);
+				}
+				.image-preview-alt-bar button {
+					padding: 4px 10px;
+					border-radius: 4px;
+					border: none;
+					cursor: pointer;
+					background: var(--interactive-accent);
+					color: var(--text-on-accent);
+				}
+				.image-preview-alt-bar button:disabled {
+					opacity: 0.5;
+					cursor: not-allowed;
+				}
+			`,
+		});
+		contentEl.addClass('image-preview-content');
+		const img = contentEl.createEl('img', {
+			attr: { src: this.imageSrc, alt: 'preview' },
+		});
+		img.addEventListener('click', () => this.close());
+
+		if (this.editContext) {
+			this.renderAltBar(contentEl);
+		}
+	}
+
+	private renderAltBar(parent: HTMLElement) {
+		const ctx = this.editContext!;
+		const found = findImageInEditor(ctx.editor, ctx.pathKey);
+
+		const bar = parent.createDiv({ cls: 'image-preview-alt-bar' });
+		bar.createEl('label', { text: 'Alt:' });
+		const input = bar.createEl('input', {
+			attr: { type: 'text', placeholder: found ? '' : '未在当前编辑器中找到对应图片' },
+		});
+		input.value = found?.alt ?? '';
+		input.disabled = !found;
+
+		const saveBtn = bar.createEl('button', { text: '保存' });
+		saveBtn.disabled = !found;
+		saveBtn.addEventListener('click', () => {
+			if (!found) return;
+			replaceImageAlt(ctx.editor, found, input.value);
+			new Notice('已更新 alt');
+			this.close();
+		});
+		input.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter' && !saveBtn.disabled) saveBtn.click();
+		});
+	}
+
+	onClose() {
+		this.contentEl.empty();
+	}
+}
+
+interface ImageMatch {
+	line: number;
+	from: number;
+	to: number;
+	alt: string;
+	body: string; // 原始内部内容（src 或 wikilink target）
+	kind: 'md' | 'wiki';
+}
+
+function findImageInEditor(editor: Editor, pathKey: string): ImageMatch | null {
+	const needle = basename(pathKey);
+	if (!needle) return null;
+	const lineCount = editor.lineCount();
+	const mdRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+	const wikiRegex = /!\[\[([^\]]+)\]\]/g;
+	for (let i = 0; i < lineCount; i++) {
+		const line = editor.getLine(i);
+		mdRegex.lastIndex = 0;
+		let m: RegExpExecArray | null;
+		while ((m = mdRegex.exec(line)) !== null) {
+			if (basename(m[2]) === needle) {
+				return { line: i, from: m.index, to: m.index + m[0].length, alt: m[1], body: m[2], kind: 'md' };
+			}
+		}
+		wikiRegex.lastIndex = 0;
+		while ((m = wikiRegex.exec(line)) !== null) {
+			const target = m[1].split('|')[0];
+			if (basename(target) === needle) {
+				const altPart = m[1].includes('|') ? m[1].slice(m[1].indexOf('|') + 1) : '';
+				return { line: i, from: m.index, to: m.index + m[0].length, alt: altPart, body: m[1], kind: 'wiki' };
+			}
+		}
+	}
+	return null;
+}
+
+function replaceImageAlt(editor: Editor, match: ImageMatch, newAlt: string) {
+	const replacement =
+		match.kind === 'md'
+			? `![${newAlt}](${match.body})`
+			: `![[${match.body.split('|')[0]}${newAlt ? `|${newAlt}` : ''}]]`;
+	editor.replaceRange(
+		replacement,
+		{ line: match.line, ch: match.from },
+		{ line: match.line, ch: match.to },
+	);
+}
+
+/**
+ * 在源文本里就地替换 ![alt](src) / ![[target|alt]] 的 alt 部分
+ * 返回 null 表示未找到
+ */
+function replaceAltInSource(source: string, pathKey: string, newAlt: string): string | null {
+	const needle = basename(pathKey);
+	if (!needle) return null;
+	const mdRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+	const wikiRegex = /!\[\[([^\]]+)\]\]/g;
+	let m: RegExpExecArray | null;
+
+	mdRegex.lastIndex = 0;
+	while ((m = mdRegex.exec(source)) !== null) {
+		if (basename(m[2]) === needle) {
+			return source.slice(0, m.index) + `![${newAlt}](${m[2]})` + source.slice(m.index + m[0].length);
+		}
+	}
+	wikiRegex.lastIndex = 0;
+	while ((m = wikiRegex.exec(source)) !== null) {
+		const target = m[1].split('|')[0];
+		if (basename(target) === needle) {
+			const replacement = `![[${target}${newAlt ? `|${newAlt}` : ''}]]`;
+			return source.slice(0, m.index) + replacement + source.slice(m.index + m[0].length);
+		}
+	}
+	return null;
+}
+
+function basename(p: string): string {
+	try {
+		const noQuery = p.split('?')[0].split('#')[0];
+		const decoded = decodeURIComponent(noQuery);
+		const parts = decoded.split(/[\\/]/);
+		return parts[parts.length - 1] || '';
+	} catch {
+		const parts = p.split(/[\\/]/);
+		return parts[parts.length - 1] || '';
+	}
+}
+
 export default class ImageOcrPlugin extends Plugin {
 	settings: ImageOcrSettings;
+	captionObserver?: MutationObserver;
+	private scanScheduled = false;
 
 	async onload() {
 		// Initialize plugin
@@ -310,6 +530,50 @@ export default class ImageOcrPlugin extends Plugin {
 
 		// 添加设置标签页
 		this.addSettingTab(new ImageOcrSettingTab(this.app, this));
+
+		// Reading Mode: 通过 markdown post-processor 注入 caption
+		this.registerMarkdownPostProcessor((el) => {
+			el.querySelectorAll('img').forEach((img) => {
+				this.attachCaption(img as HTMLImageElement);
+			});
+			el.querySelectorAll('.internal-embed[src]').forEach((embed) => {
+				const img = embed.querySelector('img') as HTMLImageElement | null;
+				if (img && !img.getAttribute('alt')) {
+					const src = embed.getAttribute('src') || '';
+					const alt = src.includes('|') ? src.slice(src.indexOf('|') + 1) : '';
+					if (alt) img.setAttribute('alt', alt);
+				}
+				if (img) this.attachCaption(img);
+			});
+		});
+
+		// Live Preview: 用 MutationObserver 兜底注入 caption
+		this.registerEvent(
+			this.app.workspace.on('layout-change', () => this.scanAndAttachCaptions()),
+		);
+		this.registerEvent(
+			this.app.workspace.on('active-leaf-change', () => this.scanAndAttachCaptions()),
+		);
+		this.captionObserver = new MutationObserver(() => this.scanAndAttachCaptions());
+		this.captionObserver.observe(document.body, { childList: true, subtree: true });
+		this.register(() => this.captionObserver?.disconnect());
+
+		// 编辑模式（Live Preview）下双击图片打开大图预览
+		this.registerDomEvent(document, 'dblclick', (evt: MouseEvent) => {
+			const target = evt.target as HTMLElement;
+			if (!target || target.tagName.toLowerCase() !== 'img') return;
+			if (!target.closest('.cm-editor')) return;
+			const src = (target as HTMLImageElement).getAttribute('src');
+			if (!src) return;
+			evt.preventDefault();
+			evt.stopPropagation();
+			const editor = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+			new ImagePreviewModal(
+				this.app,
+				src,
+				editor ? { editor, pathKey: src } : undefined,
+			).open();
+		});
 
 		// Register DOM event for contextmenu on images in Reading Mode
 		this.registerDomEvent(document, 'contextmenu', (evt: MouseEvent) => {
@@ -337,6 +601,7 @@ export default class ImageOcrPlugin extends Plugin {
 						const match = line.match(/!\[.*?\]\((.*?)\)/);
 						if (match && match[1]) {
 							const imagePath = match[1];
+							this.addPreviewMenuOption(menu, imagePath, editor);
 							this.addOcrMenuOption(menu, imagePath);
 						}
 					} else {
@@ -355,7 +620,7 @@ export default class ImageOcrPlugin extends Plugin {
 					const extension = file.extension;
 					
 					if (extension && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(extension.toLowerCase())) {
-						// Add OCR option for image files
+						this.addPreviewMenuOption(menu, file.path);
 						this.addOcrMenuOption(menu, file.path);
 					}
 				}
@@ -402,6 +667,7 @@ export default class ImageOcrPlugin extends Plugin {
 						const imgSrc = img.getAttribute('src');
 						
 						if (imgSrc) {
+							this.addPreviewMenuOption(menu, imgSrc, editor);
 							this.addOcrMenuOption(menu, imgSrc);
 							break; // Just add once for simplicity
 						}
@@ -489,6 +755,7 @@ export default class ImageOcrPlugin extends Plugin {
 
 		// Create a custom menu
 		const menu = new Menu();
+		this.addPreviewMenuOption(menu, imgSrc);
 		this.addOcrMenuOption(menu, imgSrc);
 		
 		// Show the menu at the position of the right-click
@@ -528,6 +795,24 @@ export default class ImageOcrPlugin extends Plugin {
 				.setIcon('file-scan')
 				.onClick(async () => {
 					await this.performOcr(imagePath, service);
+				});
+		});
+	}
+
+	/**
+	 * 添加"查看大图"菜单项
+	 */
+	addPreviewMenuOption(menu: Menu, imagePath: string, editor?: Editor) {
+		menu.addItem((item) => {
+			item
+				.setTitle('查看大图')
+				.setIcon('image')
+				.onClick(() => {
+					new ImagePreviewModal(
+						this.app,
+						imagePath,
+						editor ? { editor, pathKey: imagePath } : undefined,
+					).open();
 				});
 		});
 	}
@@ -614,8 +899,204 @@ export default class ImageOcrPlugin extends Plugin {
 		
 		const fullPath = `${basePath}/${normalizedPath}`;
 		// console.log('生成的完整图片路径:', fullPath);
-			
+
 		return fullPath;
 	}
 
-} 
+	/**
+	 * 扫描可见的 markdown 视图，给所有 img 注入 caption
+	 * 用 rAF 节流避免 MutationObserver 频繁触发
+	 */
+	scanAndAttachCaptions() {
+		if (this.scanScheduled) return;
+		this.scanScheduled = true;
+		requestAnimationFrame(() => {
+			this.scanScheduled = false;
+			// 清理孤儿 wrapper（img 已被 CodeMirror 销毁后残留的）
+			document.querySelectorAll<HTMLElement>('.bih-wrap').forEach((wrap) => {
+				if (!wrap.querySelector('img')) wrap.remove();
+			});
+			document
+				.querySelectorAll<HTMLImageElement>('.cm-editor img, .markdown-preview-view img')
+				.forEach((img) => this.attachCaption(img));
+		});
+	}
+
+	/**
+	 * 给单个 img 注入 caption（若已有则跳过）
+	 */
+	attachCaption(img: HTMLImageElement) {
+		if (img.dataset.bihCaptioned === '1') {
+			// 已处理，但可能 alt 改了，同步一下文本
+			const existing = img.parentElement?.querySelector(':scope > .bih-caption') as HTMLElement | null;
+			if (existing) {
+				const newAlt = this.readAlt(img);
+				if (newAlt && existing.textContent !== newAlt) existing.textContent = newAlt;
+			}
+			return;
+		}
+		const alt = this.readAlt(img);
+		// 没有 alt 就不注入 caption（避免到处都是"添加说明…"占位）
+		if (!alt) return;
+		img.dataset.bihCaptioned = '1';
+
+		const caption = document.createElement('figcaption');
+		caption.className = 'bih-caption';
+		caption.textContent = alt;
+		caption.title = '点击编辑说明';
+
+		caption.addEventListener('click', (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			this.editCaptionInline(caption, img);
+		});
+
+		// 用 inline-block wrapper 包住 img，让 caption 在 wrapper 内强制换行到下方
+		const wrap = document.createElement('span');
+		wrap.className = 'bih-wrap';
+		img.parentElement?.insertBefore(wrap, img);
+		wrap.appendChild(img);
+		wrap.appendChild(caption);
+		this.ensureCaptionStyle();
+	}
+
+	private readAlt(img: HTMLImageElement): string {
+		let alt = img.getAttribute('alt') || '';
+		if (!alt) {
+			const embedParent = img.closest('.internal-embed[src]') as HTMLElement | null;
+			const embedSrc = embedParent?.getAttribute('src') || '';
+			if (embedSrc.includes('|')) alt = embedSrc.slice(embedSrc.indexOf('|') + 1);
+		}
+		// Obsidian 默认会把文件名当 alt——这种情况不算"用户写的 caption"，跳过
+		if (alt) {
+			const src = img.getAttribute('src') || '';
+			const fileBase = basename(src).replace(/\.[^.]+$/, '');
+			if (alt === fileBase || alt === basename(src)) return '';
+		}
+		return alt;
+	}
+
+	private styleInjected = false;
+	private ensureCaptionStyle() {
+		if (this.styleInjected) return;
+		this.styleInjected = true;
+		const style = document.createElement('style');
+		style.textContent = `
+			.bih-wrap {
+				display: inline-block;
+				vertical-align: top;
+				max-width: 100%;
+			}
+			.bih-wrap > img {
+				display: block;
+				max-width: 100%;
+			}
+			.bih-caption {
+				display: block;
+				width: 100%;
+				text-align: center;
+				font-size: 0.85em;
+				color: var(--text-muted);
+				margin: 4px 0 8px;
+				padding: 2px 6px;
+				cursor: text;
+				font-style: italic;
+				word-break: break-word;
+				box-sizing: border-box;
+			}
+			.bih-caption:hover {
+				color: var(--text-normal);
+				background: var(--background-modifier-hover);
+				border-radius: 4px;
+			}
+			.bih-caption-input {
+				display: block;
+				margin: 4px auto 12px;
+				width: 80%;
+				padding: 4px 8px;
+				font-size: 0.85em;
+				font-style: italic;
+				text-align: center;
+				border: 1px solid var(--interactive-accent);
+				border-radius: 4px;
+				background: var(--background-primary);
+				color: var(--text-normal);
+			}
+		`;
+		document.head.appendChild(style);
+		this.register(() => style.remove());
+	}
+
+	private editCaptionInline(caption: HTMLElement, img: HTMLImageElement) {
+		const currentAlt = caption.classList.contains('bih-caption-empty')
+			? ''
+			: caption.textContent || '';
+		const input = document.createElement('input');
+		input.type = 'text';
+		input.value = currentAlt;
+		input.className = 'bih-caption-input';
+		caption.replaceWith(input);
+		input.focus();
+		input.select();
+
+		let finished = false;
+		const finish = async (commit: boolean) => {
+			if (finished) return;
+			finished = true;
+			const newAlt = commit ? input.value : currentAlt;
+			if (commit && newAlt !== currentAlt) {
+				const ok = await this.persistAlt(img, newAlt);
+				if (!ok) new Notice('未能定位到对应图片，alt 未保存');
+			}
+			if (newAlt) {
+				caption.textContent = newAlt;
+				input.replaceWith(caption);
+			} else {
+				// 清空了：移除整个 caption 和 wrapper 的捕获关系（让源文件改动驱动重渲染）
+				input.remove();
+				img.dataset.bihCaptioned = '';
+			}
+		};
+
+		input.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter') finish(true);
+			if (e.key === 'Escape') finish(false);
+		});
+		input.addEventListener('blur', () => finish(true));
+	}
+
+	/**
+	 * 保存 alt 到源文件：优先用 active editor，其次回写 vault 文件
+	 */
+	private async persistAlt(img: HTMLImageElement, newAlt: string): Promise<boolean> {
+		const src = img.getAttribute('src') || '';
+		const embedParent = img.closest('.internal-embed[src]') as HTMLElement | null;
+		const embedSrc = embedParent?.getAttribute('src') || '';
+		const pathKey = embedSrc ? embedSrc.split('|')[0] : src;
+		if (!pathKey) return false;
+
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (view?.editor) {
+			const found = findImageInEditor(view.editor, pathKey);
+			if (found) {
+				replaceImageAlt(view.editor, found, newAlt);
+				return true;
+			}
+		}
+		const file = this.app.workspace.getActiveFile();
+		if (file) {
+			let replaced = false;
+			await this.app.vault.process(file, (content) => {
+				const updated = replaceAltInSource(content, pathKey, newAlt);
+				if (updated !== null) {
+					replaced = true;
+					return updated;
+				}
+				return content;
+			});
+			return replaced;
+		}
+		return false;
+	}
+
+}

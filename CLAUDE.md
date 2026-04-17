@@ -8,7 +8,7 @@ Obsidian plugin (`better-image-helper`) providing right-click OCR on images via 
 
 ## Commands
 
-- `pnpm dev` — esbuild watch mode, emits `dist/main.js` with inline sourcemaps.
+- `pnpm dev` — esbuild watch mode, emits `dist/main.js` with inline sourcemaps. If `OBSIDIAN_VAULT_PATH` (or `OBSIDIAN_PLUGIN_PATH`) is set — typically via `.env` — each rebuild rsyncs `dist/` → `<vault>/.obsidian/plugins/obsidian-better-image-helper/` (preserving `data.json`) and touches `.hotreload` so pjeby's Hot Reload plugin auto-reloads. `.env` overrides shell env on purpose.
 - `pnpm build` — `tsc -noEmit` typecheck + esbuild production bundle. `postbuild` runs automatically and rewrites `timer.unref()` → `// timer.unref()` in `dist/main.js` (see below).
 - `pnpm release:patch | release:minor | release:major` — bump `package.json` (no git tag), run `version` script to propagate to `manifest.json` + `versions.json`, then commit, tag (version-only, no `v` prefix), and push. The tag push triggers `.github/workflows/release.yml` which builds and attaches `dist/main.js` + `dist/manifest.json` to a GitHub Release.
 
@@ -16,7 +16,7 @@ No test or lint scripts are configured.
 
 ## Installing locally
 
-Build output lands in `dist/`. To test in a real vault, copy `dist/main.js` and `dist/manifest.json` (and `dist/styles.css` if ever added) into `<vault>/.obsidian/plugins/better-image-helper/` and reload Obsidian.
+Build output lands in `dist/`. For dev, set `OBSIDIAN_VAULT_PATH` in `.env` and `pnpm dev` will sync automatically on every rebuild; install pjeby's Hot Reload plugin (`hot-reload` — manifest id, *not* directory name) in the vault to pick up changes without toggling. The target directory name in the vault is `obsidian-better-image-helper` (matches the repo dir, not the manifest `id`) for historical compatibility. For manual installs, copy `dist/main.js` + `dist/manifest.json` into `<vault>/.obsidian/plugins/obsidian-better-image-helper/` and reload Obsidian.
 
 ## Architecture
 

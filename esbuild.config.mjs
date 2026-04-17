@@ -3,6 +3,16 @@ import process from "process";
 import builtins from "builtin-modules";
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
+
+// Load .env if present — per-project .env overrides shell env (dev convenience; no dotenv dep)
+const envFile = path.resolve(".env");
+if (fs.existsSync(envFile)) {
+  for (const line of fs.readFileSync(envFile, "utf8").split("\n")) {
+    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/i);
+    if (m) process.env[m[1]] = m[2].replace(/^['"]|['"]$/g, "");
+  }
+}
 
 const banner =
 `/*
@@ -12,6 +22,42 @@ if you want to view the source, please visit the github repository of this plugi
 `;
 
 const prod = process.argv[2] === "production";
+
+// Sync target: <VAULT>/.obsidian/plugins/obsidian-better-image-helper (repo dir name, matches existing vault install)
+const vaultPath = process.env.OBSIDIAN_VAULT_PATH;
+const pluginPath = vaultPath
+  ? path.join(vaultPath, ".obsidian", "plugins", "obsidian-better-image-helper")
+  : process.env.OBSIDIAN_PLUGIN_PATH;
+
+// Aliyun SDK calls timer.unref() which throws in Electron — same fix as postbuild.mjs.
+// Required for dev-watch too, since postbuild only runs after `pnpm build`.
+const patchTimerUnref = () => {
+  const p = path.join("dist", "main.js");
+  if (!fs.existsSync(p)) return;
+  const src = fs.readFileSync(p, "utf8");
+  const out = src.replace(/timer\.unref\(\);/g, "// timer.unref();");
+  if (out !== src) fs.writeFileSync(p, out, "utf8");
+};
+
+const syncToObsidian = () => {
+  if (!pluginPath) return;
+  if (!fs.existsSync(pluginPath)) {
+    fs.mkdirSync(pluginPath, { recursive: true });
+    console.log(`📁 Created ${pluginPath}`);
+  }
+  try {
+    // --exclude data.json: preserve user credentials in vault
+    execSync(
+      `rsync -a -q --exclude data.json dist/ "${pluginPath}/"`,
+      { stdio: "pipe" }
+    );
+    // .hotreload marker tells obsidian-hot-reload plugin to auto-reload on change
+    fs.writeFileSync(path.join(pluginPath, ".hotreload"), "");
+    console.log(`✅ Synced → ${pluginPath}`);
+  } catch (e) {
+    console.error("❌ Sync failed:", e.message);
+  }
+};
 
 // Make sure dist directory exists
 if (!fs.existsSync("dist")) {
@@ -71,7 +117,7 @@ const context = await esbuild.context({
         build.onLoad({ filter: /.*/, namespace: 'node-globals' }, () => {
           return {
             contents: `
-              export const env = { 
+              export const env = {
                 ALI_AK: '${process.env.ALI_AK || ''}',
                 ALI_SK: '${process.env.ALI_SK || ''}'
               };
@@ -81,7 +127,17 @@ const context = await esbuild.context({
           };
         });
       }
-    }
+    },
+    {
+      name: 'obsidian-sync',
+      setup(build) {
+        build.onEnd((result) => {
+          if (result.errors.length > 0 || prod) return;
+          patchTimerUnref();
+          syncToObsidian();
+        });
+      },
+    },
   ]
 });
 
@@ -89,5 +145,6 @@ if (prod) {
   await context.rebuild();
   process.exit(0);
 } else {
+  console.log(pluginPath ? `👀 Dev: will sync to ${pluginPath}` : "⚠️  OBSIDIAN_VAULT_PATH not set — skipping auto-sync");
   await context.watch();
 } 

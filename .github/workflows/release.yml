@@ -32,15 +32,29 @@ jobs:
       - name: Build plugin
         run: pnpm run build
 
+      - name: Extract release notes
+        id: notes
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          if [ -f CHANGELOG.md ]; then
+            NOTES=$(awk -v ver="$tag" '
+              /^## / { if (found) exit; if ($2 == ver) { found=1; next } }
+              found { print }
+            ' CHANGELOG.md)
+          fi
+          if [ -z "$NOTES" ]; then NOTES="Release $tag"; fi
+          {
+            echo 'notes<<RELEASE_NOTES_EOF'
+            echo "$NOTES"
+            echo 'RELEASE_NOTES_EOF'
+          } >> $GITHUB_OUTPUT
+
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${GITHUB_REF#refs/tags/}"
-          # 标签已经不包含 v 前缀，直接使用
-          
-          # 创建GitHub release，上传所需文件
           gh release create "$tag" \
             --title "$tag" \
-            --notes "Release $tag of the plugin." \
-            dist/main.js dist/manifest.json 
+            --notes "${{ steps.notes.outputs.notes }}" \
+            dist/main.js dist/manifest.json
