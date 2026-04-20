@@ -967,11 +967,11 @@ export default class ImageOcrPlugin extends Plugin {
 			const embedSrc = embedParent?.getAttribute('src') || '';
 			if (embedSrc.includes('|')) alt = embedSrc.slice(embedSrc.indexOf('|') + 1);
 		}
-		// Obsidian 默认会把文件名当 alt——这种情况不算"用户写的 caption"，跳过
+		// Obsidian 会给没写 alt 的图片自动填一段（文件名 / URL 片段）当 alt。
+		// 只要 alt 出现在 src 里，就认为是自动生成的，不是用户写的 caption。
 		if (alt) {
 			const src = img.getAttribute('src') || '';
-			const fileBase = basename(src).replace(/\.[^.]+$/, '');
-			if (alt === fileBase || alt === basename(src)) return '';
+			if (src.includes(alt)) return '';
 		}
 		return alt;
 	}

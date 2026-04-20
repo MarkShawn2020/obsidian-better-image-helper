@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.8
+
+### Fixes
+
+- **Caption 误识别外链 URL 片段**: 修复 Obsidian 为无 alt 的外链图片（如 `![](http://...?imageMogr2/.../1000k!)`）自动填充 URL 片段到 img alt 时，被错误当作用户 caption 显示的问题。现在只要 alt 是 src 的子串就视为自动生成，不再注入 caption。
+
 ## 1.1.7
 
 ### Features
