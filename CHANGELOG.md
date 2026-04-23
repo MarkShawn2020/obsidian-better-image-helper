@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.9
+
+### Fixes
+
+- **IME 输入法回车误触发保存**: 中文/日文等输入法在 composing 状态下按回车应仅用于确认候选词，不应触发 alt 保存。现对 alt 编辑 modal 与图片 caption 内联编辑两处回车绑定添加 `isComposing` / `keyCode === 229` 守卫。
+
 ## 1.1.8
 
 ### Fixes

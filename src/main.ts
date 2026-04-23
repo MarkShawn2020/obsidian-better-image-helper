@@ -420,6 +420,7 @@ class ImagePreviewModal extends Modal {
 			this.close();
 		});
 		input.addEventListener('keydown', (e) => {
+			if (e.isComposing || (e as any).keyCode === 229) return;
 			if (e.key === 'Enter' && !saveBtn.disabled) saveBtn.click();
 		});
 	}
@@ -1059,6 +1060,7 @@ export default class ImageOcrPlugin extends Plugin {
 		};
 
 		input.addEventListener('keydown', (e) => {
+			if (e.isComposing || (e as any).keyCode === 229) return;
 			if (e.key === 'Enter') finish(true);
 			if (e.key === 'Escape') finish(false);
 		});
